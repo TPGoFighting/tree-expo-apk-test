@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Tree-expo APK emulator screenshots, run 3.
+# Tree-expo APK emulator screenshots, run 4 (v2 APK).
 #
 # Runs as ONE bash script, invoked by the workflow as `bash scripts/run-shots.sh`.
 # Do NOT inline this into the emulator-runner `script:` block: that action
@@ -11,7 +11,11 @@
 #   1. waits 60 s after boot for System UI to settle and probes responsiveness
 #   2. checks for an ANR dialog before every screenshot and taps "Wait"
 #      (coordinates parsed from the UI dump, never hardcoded)
-#   3. screenshots the home screen twice (15 s and 30 s after launch)
+#   3. screenshots the home screen at 60 s and 120 s after launch
+#      (run 3: the tree never appeared in a 30 s window — this emulator is
+#      ~10-20x slower than a phone, so give the loading gate real time)
+#   4. taps "me" and waits 10 s before its screenshot (key shot: camera pan,
+#      intro text, and whether the 4 photos render on native)
 set -u
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -78,23 +82,25 @@ else
   adb shell am start -n top.tpgofighting.tree/.MainActivity
 fi
 
-# --- 3. screenshots over time ---
-sleep 15
-handle_anr "home-15s"
-shot tree-home-15s.png
-sleep 15
-handle_anr "home-30s"
-shot tree-home-30s.png
+# --- 3. screenshots over time (run 4: long waits — the emulator is very slow) ---
+# First home shot at 60 s after launch; second at 120 s (taken regardless,
+# so the run log can show whether the gate cleared late).
+sleep 60
+handle_anr "home-60s"
+shot tree-home-60s.png
+sleep 60
+handle_anr "home-120s"
+shot tree-home-120s.png
 
-# tap "me" (bottom-right on 1080x2400)
+# tap "me" (bottom-right on 1080x2400) — key shot: pan, intro, 4 photos?
 adb shell input tap 930 1980 || true
-sleep 5
+sleep 10
 handle_anr "me"
 shot tree-me.png
 
 # tap back arrow (bottom-left)
 adb shell input tap 100 2200 || true
-sleep 3
+sleep 5
 handle_anr "back"
 shot tree-back.png
 

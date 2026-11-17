@@ -4,7 +4,11 @@ name: tree-expo APK emulator screenshots
 # top.tpgofighting.tree) on a GitHub-hosted Android emulator and captures
 # screenshots. The APK is downloaded from its public preview URL at run time
 # — it is NOT committed to this repo.
-# APK: https://tpgofighting.top/preview/tree-expo/app.apk (124,308,733 bytes)
+# APK (v2, shader-fixed EAS build 960300a5, FINISHED 2026-11-17 14:18 CST):
+# https://expo.dev/artifacts/eas/X0jY5tE532Cu1pcTPLf9wJvGXnz1OyAbLOeYTKkS7to.apk
+# (124,347,441 bytes, sha256 a2e113dcd9b69e824dedc9af7ac0794d37ab757410dbed36ba93f15f0bea96b1)
+# NOTE: https://tpgofighting.top/preview/tree-expo/app.apk still serves v1
+# (124,308,733 bytes) — ATP SSH is down, deployment pending. Do NOT use it.
 
 on:
   push:
@@ -17,13 +21,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download APK
+      - name: Download APK (v2, EAS build 960300a5)
         run: |
-          curl --fail -L -o app.apk https://tpgofighting.top/preview/tree-expo/app.apk
+          curl --fail -L -o app.apk https://expo.dev/artifacts/eas/X0jY5tE532Cu1pcTPLf9wJvGXnz1OyAbLOeYTKkS7to.apk
           SIZE=$(stat -c%s app.apk)
           echo "APK size: $SIZE"
-          if [ "$SIZE" != "124308733" ]; then
-            echo "ERROR: unexpected APK size $SIZE (expected 124308733)"
+          if [ "$SIZE" != "124347441" ]; then
+            echo "ERROR: unexpected APK size $SIZE (expected 124347441)"
             exit 1
           fi
 
@@ -38,9 +42,11 @@ jobs:
           # `/usr/bin/sh -c` invocation, so shell variables and functions do
           # NOT persist between lines (run 1 lesson). All logic lives in
           # scripts/run-shots.sh; this block is a single call to it.
-          # Run 3: waits for System UI to settle, taps "Wait" on any ANR
+          # Run 4: waits for System UI to settle, taps "Wait" on any ANR
           # dialog (coordinates parsed from the UI dump), screenshots the
-          # home screen twice (15 s / 30 s after launch).
+          # home screen at 60 s and 120 s after launch (run 3: the tree
+          # never appeared in a 30 s window — emulator is ~10-20x slower
+          # than a phone), then taps "me" and waits 10 s before its shot.
           script: bash scripts/run-shots.sh
 
       - name: Upload screenshots and logcat
@@ -49,8 +55,8 @@ jobs:
         with:
           name: tree-expo-shots
           path: |
-            tree-home-15s.png
-            tree-home-30s.png
+            tree-home-60s.png
+            tree-home-120s.png
             tree-me.png
             tree-back.png
             logcat.txt
