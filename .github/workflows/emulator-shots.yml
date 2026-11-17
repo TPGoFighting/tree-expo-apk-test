@@ -1,0 +1,65 @@
+name: tree-expo APK emulator screenshots
+
+# Test-only repo: installs the tree-expo APK (Expo SDK 58, package
+# top.tpgofighting.tree) on a GitHub-hosted Android emulator and captures
+# screenshots. The APK is downloaded from its public preview URL at run time
+# — it is NOT committed to this repo.
+# APK: https://tpgofighting.top/preview/tree-expo/app.apk (124,308,733 bytes)
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  emulator-shots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download APK
+        run: |
+          curl --fail -L -o app.apk https://tpgofighting.top/preview/tree-expo/app.apk
+          SIZE=$(stat -c%s app.apk)
+          echo "APK size: $SIZE"
+          if [ "$SIZE" != "124308733" ]; then
+            echo "ERROR: unexpected APK size $SIZE (expected 124308733)"
+            exit 1
+          fi
+
+      - name: Install and screenshot on emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          script: |
+            adb shell wm size
+            adb install -r app.apk
+            ACT=$(adb shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.LAUNCHER top.tpgofighting.tree | tail -1)
+            echo "launcher activity: $ACT"
+            if [ -z "$ACT" ]; then ACT="top.tpgofighting.tree/.MainActivity"; fi
+            adb shell am start -n "$ACT"
+            sleep 10
+            adb exec-out screencap -p > tree-home.png || true
+            adb shell input tap 930 1980 || true
+            sleep 5
+            adb exec-out screencap -p > tree-me.png || true
+            adb shell input tap 100 2200 || true
+            sleep 3
+            adb exec-out screencap -p > tree-back.png || true
+            adb logcat -d > logcat.txt || true
+            ls -la *.png *.txt
+
+      - name: Upload screenshots and logcat
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tree-expo-shots
+          path: |
+            tree-home.png
+            tree-me.png
+            tree-back.png
+            logcat.txt
+          if-no-files-found: warn
