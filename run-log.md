@@ -84,3 +84,74 @@ Workflow: `.github/workflows/emulator-shots.yml` (ubuntu-latest, API 34, x86_64,
   Suggested next step if retried: wait 60–90 s after launch before the first
   screenshot (not decided — needs a new instruction; do not loop on this
   without one).
+
+## Run 4 — 44031052727 — SUCCESS (2026-11-17 06:25 UTC, 22m41s)
+- https://github.com/TPGoFighting/tree-expo-apk-test/actions/runs/44031052727
+- Changes (commit cd6d3d3): **v2 APK** — EAS build 960300a5 (shader fix:
+  `uInk.eval`, 124,347,441 bytes, sha256
+  a2e113dcd9b69e824dedc9af7ac0794d37ab757410dbed36ba93f15f0bea96b1),
+  downloaded from the EAS artifact link with size verification (the preview
+  URL still serves v1 — ATP SSH down, deploy pending). First home shots at
+  60 s and 120 s after launch; "me" tap waits 10 s before its shot.
+- Artifact `tree-expo-shots` downloaded to `shots/run4/`
+  (tree-home-60s.png, tree-home-120s.png, tree-me.png, tree-back.png,
+  logcat.txt, ui-last.xml).
+
+## Result — v2 app runs, but the tree NEVER appears; ANR dialogs again
+- Job log: system responsive on try 2 (06:38:04), pre-launch "no ANR dialog"
+  (06:38:29). APK size verified 124347441 at download.
+- Screenshots (viewed):
+  - home-60s (06:43): "Process system isn't responding" dialog over black —
+    DESPITE the job log saying "[home-60s] no ANR dialog" at 06:43:12; the
+    dialog appeared (or the dump missed it) in the ~20 s before the screencap
+    completed (06:43:32). handle_anr is not fully reliable when the system
+    is this frozen (a uiautomator dump also timed out at 06:37:24).
+  - home-120s (06:45): "System UI isn't responding" dialog over black —
+    STILL present after handle_anr tapped Wait at parsed (540,1328) at
+    06:44:55 + 5 s wait. Either the tap never registered (input dispatch
+    frozen) or a new dialog (different process) appeared after the tap.
+  - tree-me (06:46) / tree-back (06:46): dialog gone, but a plain uniform
+    dark screen — NO "…" placeholder, NO tree, NO labels, NO intro text.
+    The two files are byte-identical (same sha256). The "me" tap (06:45:54)
+    and back tap landed while the ANR dialog was up, so they almost
+    certainly never reached the app; these shots prove nothing about the
+    interaction.
+- Logcat — app healthy, no crash, but burning CPU with no visible output:
+  - MainActivity Displayed +18s661ms (06:42:08), `ReactNativeJS: Running
+    "main"` (06:42:18), zero JS errors after start, zero FATAL for the app.
+    The 4 FATAL EXCEPTION lines are all system-side and pre-app
+    (com.android.phone, com.android.systemui, one more system process —
+    DeadSystemException at 06:33:34–35; plus a uiautomator UiAutomation
+    connect timeout at 06:37:24). ANRs: 22 "ANR in" lines, all system
+    processes (phone ×18, bluetooth, media.module, systemui, system) —
+    zero "ANR in top.tpgofighting.tree".
+  - `SkiaTextureView: onSurfaceTextureAvailable: 1080x2400` (06:42:29) —
+    the Skia surface IS created. One benign `updateAndRelease() failed...
+    can safely be ignored` (RNSkia's own wording) after a one-off
+    `EGLConsumer is not attached to an OpenGL ES context` (06:42:30).
+    `Choreographer: Skipped 33 frames!` and `EGL_emulation:
+    app_time_stats: avg=10403ms` — frames take ~10 s each on SwiftShader.
+  - The app process stays at 35–58% CPU continuously (ActivityManager
+    snapshots every ~30 s, 06:42–06:47) — it is doing heavy work the whole
+    window, then goes silent in logcat (normal, no per-frame logging).
+- Verdict: INCONCLUSIVE again, with a NEW signal vs run 3. Run 3 sat on the
+  "…" gate for 2.5 min; run 4's me/back shots (~4 min after JS start) show
+  NO "…" — the gate appears to have cleared, yet the screen is a blank dark
+  surface with no tree. Two hypotheses cannot be separated from this run:
+  (1) emulator artifact — SwiftShader software rendering + a continuously
+  ANR-ing/frozen system compositor can't present the Skia canvas (the
+  dialog covered the screen at both home shots); or (2) a real native bug —
+  the v2 APK passes the gate but renders nothing on Android (the web
+  preview renders the tree fine, but native Skia presentation is a
+  different path: SkiaTextureView + SurfaceTexture). The EGLConsumer line
+  is a named lead, not proof.
+- Emulator route status: three runs, three different emulator-side failure
+  modes (run 2: ANR dialogs; run 3: "…" gate; run 4: blank dark screen +
+  dialogs). Timing tweaks have now been tried twice (30 s → 60/120 s) and
+  the failure mode changed rather than resolved. The decisive check remains
+  TP's real phone with the v2 APK (he has the link). If retried, the change
+  should be structural, not another timing tweak — e.g. a different
+  emulator profile/API, a debug build with frame-loop logging, or a
+  uiautomator dump at 120 s to tell gate-stuck ("…" node present) from
+  canvas-blank ("…" node absent) without relying on pixels. Do not loop
+  without a new instruction.
