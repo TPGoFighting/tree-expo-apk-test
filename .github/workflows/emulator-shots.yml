@@ -35,22 +35,13 @@ jobs:
           profile: pixel_6
           disable-animations: true
           # NOTE: this action executes EACH LINE of `script` as a separate
-          # `/usr/bin/sh -c` invocation, so shell variables do NOT persist
-          # between lines. Every line below must be self-contained.
-          script: |
-            adb shell wm size
-            adb install -r app.apk
-            adb shell am start -n "$(adb shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.LAUNCHER top.tpgofighting.tree | tr -d '\r' | tail -n 1)" || adb shell am start -n top.tpgofighting.tree/.MainActivity
-            sleep 10
-            adb exec-out screencap -p > tree-home.png || true
-            adb shell input tap 930 1980 || true
-            sleep 5
-            adb exec-out screencap -p > tree-me.png || true
-            adb shell input tap 100 2200 || true
-            sleep 3
-            adb exec-out screencap -p > tree-back.png || true
-            adb logcat -d > logcat.txt || true
-            ls -la *.png *.txt
+          # `/usr/bin/sh -c` invocation, so shell variables and functions do
+          # NOT persist between lines (run 1 lesson). All logic lives in
+          # scripts/run-shots.sh; this block is a single call to it.
+          # Run 3: waits for System UI to settle, taps "Wait" on any ANR
+          # dialog (coordinates parsed from the UI dump), screenshots the
+          # home screen twice (15 s / 30 s after launch).
+          script: bash scripts/run-shots.sh
 
       - name: Upload screenshots and logcat
         if: always()
@@ -58,8 +49,10 @@ jobs:
         with:
           name: tree-expo-shots
           path: |
-            tree-home.png
+            tree-home-15s.png
+            tree-home-30s.png
             tree-me.png
             tree-back.png
             logcat.txt
+            ui-last.xml
           if-no-files-found: warn
